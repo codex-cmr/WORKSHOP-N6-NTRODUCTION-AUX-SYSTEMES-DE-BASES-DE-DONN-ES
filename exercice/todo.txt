@@ -1,0 +1,159 @@
+-- 1️⃣ Nutzer-Tabelle
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
+    phone TEXT,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- 2️⃣ Profile-Tabelle (Erweiterung für Nutzerprofile)
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE, -- 1:1 Beziehung
+    username TEXT UNIQUE NOT NULL, -- Benutzername
+    profile_picture TEXT, -- URL zum Profilbild
+    bio TEXT, -- Kurze Beschreibung
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- 3️⃣ Anzeigen-Tabelle
+CREATE TABLE ads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    departure_airport TEXT NOT NULL,
+    arrival_airport TEXT NOT NULL,
+    flight_date DATE NOT NULL,
+    available_weight DECIMAL(5,2) NOT NULL,
+    price_per_kg DECIMAL(5,2) NOT NULL,
+    price_special_items JSONB,
+    phone TEXT,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- 4️⃣ Chat-Tabelle
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    ad_id UUID REFERENCES ads(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+-- ===============================
+-- INSERT STATEMENTS
+-- ===============================
+
+-- 1️⃣ Nutzer einfügen
+INSERT INTO users (email, name, phone) VALUES
+('max.mueller@email.com', 'Max Müller', '+49 123 456789'),
+('anna.schmidt@email.com', 'Anna Schmidt', '+49 987 654321'),
+('tom.weber@email.com', 'Tom Weber', '+49 555 123456'),
+('lisa.klein@email.com', 'Lisa Klein', '+49 777 888999'),
+('peter.gross@email.com', 'Peter Groß', '+49 111 222333');
+
+-- 2️⃣ Profile einfügen (wir verwenden feste UUIDs für die Beispiele)
+-- Hinweis: In der Praxis würden Sie die tatsächlichen user_id aus der users-Tabelle verwenden
+INSERT INTO profiles (user_id, username, profile_picture, bio) VALUES
+((SELECT id FROM users WHERE email = 'max.mueller@email.com'), 'max_traveler', 'https://example.com/max.jpg', 'Reise gerne nach Asien'),
+((SELECT id FROM users WHERE email = 'anna.schmidt@email.com'), 'anna_explorer', 'https://example.com/anna.jpg', 'Backpacker aus Leidenschaft'),
+((SELECT id FROM users WHERE email = 'tom.weber@email.com'), 'tom_pilot', 'https://example.com/tom.jpg', 'Pilot mit viel Gepäckplatz'),
+((SELECT id FROM users WHERE email = 'lisa.klein@email.com'), 'lisa_globe', 'https://example.com/lisa.jpg', 'Weltenbummlerin'),
+((SELECT id FROM users WHERE email = 'peter.gross@email.com'), 'peter_business', 'https://example.com/peter.jpg', 'Geschäftsreisender');
+
+-- 3️⃣ Anzeigen einfügen
+INSERT INTO ads (user_id, departure_airport, arrival_airport, flight_date, available_weight, price_per_kg, phone) VALUES
+((SELECT id FROM users WHERE email = 'max.mueller@email.com'), 'FRA', 'NRT', '2024-03-15', 15.50, 8.00, '+49 123 456789'),
+((SELECT id FROM users WHERE email = 'anna.schmidt@email.com'), 'MUC', 'JFK', '2024-03-20', 20.00, 12.50, '+49 987 654321'),
+((SELECT id FROM users WHERE email = 'tom.weber@email.com'), 'DUS', 'LHR', '2024-03-25', 10.00, 5.00, '+49 555 123456'),
+((SELECT id FROM users WHERE email = 'lisa.klein@email.com'), 'HAM', 'CDG', '2024-04-01', 25.00, 15.00, '+49 777 888999'),
+((SELECT id FROM users WHERE email = 'peter.gross@email.com'), 'BER', 'LAX', '2024-04-10', 30.00, 20.00, '+49 111 222333');
+
+-- 4️⃣ Nachrichten einfügen
+INSERT INTO messages (sender_id, receiver_id, ad_id, message) VALUES
+((SELECT id FROM users WHERE email = 'anna.schmidt@email.com'), 
+ (SELECT id FROM users WHERE email = 'max.mueller@email.com'), 
+ (SELECT id FROM ads WHERE departure_airport = 'FRA' AND arrival_airport = 'NRT'), 
+ 'Hallo Max! Ich interessiere mich für deine Anzeige nach Tokyo.'),
+((SELECT id FROM users WHERE email = 'max.mueller@email.com'), 
+ (SELECT id FROM users WHERE email = 'anna.schmidt@email.com'), 
+ (SELECT id FROM ads WHERE departure_airport = 'FRA' AND arrival_airport = 'NRT'), 
+ 'Hallo Anna! Gerne können wir das besprechen. Was möchtest du transportieren?'),
+((SELECT id FROM users WHERE email = 'tom.weber@email.com'), 
+ (SELECT id FROM users WHERE email = 'lisa.klein@email.com'), 
+ (SELECT id FROM ads WHERE departure_airport = 'HAM' AND arrival_airport = 'CDG'), 
+ 'Hi Lisa, ist noch Platz für 5kg verfügbar?'),
+((SELECT id FROM users WHERE email = 'lisa.klein@email.com'), 
+ (SELECT id FROM users WHERE email = 'tom.weber@email.com'), 
+ (SELECT id FROM ads WHERE departure_airport = 'HAM' AND arrival_airport = 'CDG'), 
+ 'Ja Tom, 5kg sind kein Problem!');
+
+-- ===============================
+-- EINFACHE AUFGABEN MIT LÖSUNGEN
+-- ===============================
+
+-- AUFGABE 1: Alle Nutzer anzeigen
+-- Frage: Zeige alle Nutzer mit ihren E-Mail-Adressen und Namen an.
+-- Lösung:
+SELECT name, email FROM users;
+
+-- AUFGABE 2: Nutzer zählen
+-- Frage: Wie viele Nutzer sind in der Datenbank registriert?
+-- Lösung:
+SELECT COUNT(*) as anzahl_nutzer FROM users;
+
+-- AUFGABE 3: Anzeigen nach Zielort
+-- Frage: Zeige alle Anzeigen an, die nach "JFK" (New York) gehen.
+-- Lösung:
+SELECT departure_airport, arrival_airport, flight_date, available_weight, price_per_kg 
+FROM ads 
+WHERE arrival_airport = 'JFK';
+
+-- AUFGABE 4: Günstigste Anzeige finden
+-- Frage: Welche Anzeige hat den niedrigsten Preis pro Kilogramm?
+-- Lösung:
+SELECT departure_airport, arrival_airport, price_per_kg 
+FROM ads 
+ORDER BY price_per_kg ASC 
+LIMIT 1;
+
+-- AUFGABE 5: Nutzer mit Profil
+-- Frage: Zeige alle Nutzer mit ihren Benutzernamen an (JOIN zwischen users und profiles).
+-- Lösung:
+SELECT u.name, u.email, p.username 
+FROM users u 
+JOIN profiles p ON u.id = p.user_id;
+
+-- AUFGABE 6: Anzeigen mit hohem Gewicht
+-- Frage: Zeige alle Anzeigen an, die mehr als 20kg Gepäck transportieren können.
+-- Lösung:
+SELECT departure_airport, arrival_airport, available_weight 
+FROM ads 
+WHERE available_weight > 20.00;
+
+-- AUFGABE 7: Nachrichten zählen
+-- Frage: Wie viele Nachrichten wurden insgesamt gesendet?
+-- Lösung:
+SELECT COUNT(*) as anzahl_nachrichten FROM messages;
+
+-- AUFGABE 8: Anzeigen nach Datum sortieren
+-- Frage: Zeige alle Anzeigen sortiert nach Flugdatum (neueste zuerst).
+-- Lösung:
+SELECT departure_airport, arrival_airport, flight_date 
+FROM ads 
+ORDER BY flight_date DESC;
+
+-- AUFGABE 9: Nutzer ohne Profil finden
+-- Frage: Gibt es Nutzer, die noch kein Profil erstellt haben?
+-- Lösung:
+SELECT u.name, u.email 
+FROM users u 
+LEFT JOIN profiles p ON u.id = p.user_id 
+WHERE p.user_id IS NULL;
+
+-- AUFGABE 10: Durchschnittspreis berechnen
+-- Frage: Wie hoch ist der Durchschnittspreis pro Kilogramm über alle Anzeigen?
+-- Lösung:
+SELECT ROUND(AVG(price_per_kg), 2) as durchschnittspreis 
+FROM ads;
